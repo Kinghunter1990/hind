@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل قيد لعبة هند الورقية</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            background-color: #add8e6; /* الأزرق الفاتح */
+            overflow-y: auto;
+            color: #FFD700; /* اللون الأصفر */
+            font-size: 15px; /* حجم الخط 15 */
+        }
+        .container {
+            margin-top: 20px;
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        label, button {
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        input {
+            padding: 8px;
+            margin: 10px 0;
+            width: 100px;
+            text-align: center;
+        }
+        .logs {
+            margin-top: 20px;
+            border-top: 2px solid #000;
+            padding-top: 10px;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            text-align: right;
+        }
+        .log-entry span {
+            font-weight: bold;
+        }
+        .total-scores {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .view-games {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Custom styles for dialog */
+        dialog {
+            width: 80%;
+            max-width: 500px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        dialog button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>تسجيل قيد لعبة هند الورقية</h1>
+
+        <div class="total-scores">
+            <h3>إجمالي النقاط:</h3>
+            <p>الفريق الأول (لنا): <span id="totalScore1">0</span> نقاط</p>
+            <p>الفريق الثاني (لهم): <span id="totalScore2">0</span> نقاط</p>
+        </div>
+
+        <div class="view-games">
+            <button onclick="toggleGames()">عرض/إخفاء جميع الألعاب (التي تحتوي على 9 قيود)</button>
+        </div>
+
+        <div class="container">
+            <label for="team1">الفريق الأول (لنا):</label>
+            <input type="text" id="team1" value="لنا">
+            <br>
+            <label for="team2">الفريق الثاني (لهم):</label>
+            <input type="text" id="team2" value="لهم">
+            <br><br>
+            <label for="score1">نقاط الفريق الأول:</label>
+            <input type="number" id="score1" value="0">
+            <br>
+            <label for="score2">نقاط الفريق الثاني:</label>
+            <input type="number" id="score2" value="0">
+            <br><br>
+
+            <!-- Button group for Save and Undo actions -->
+            <div class="button-group">
+                <button onclick="saveGame()">حفظ قيد اللعبة</button>
+                <button onclick="undoLastRecord()">التراجع عن آخر قيد</button>
+                <button onclick="openAutoSaveDialog()">تسجيل تلقائي</button> <!-- زر لتسجيل تلقائي -->
+            </div>
+        </div>
+
+        <div class="logs">
+            <h3>سجلات اللعب:</h3>
+            <div id="logEntries"></div>
+        </div>
+
+        <div class="view-games">
+            <button onclick="clearAllLogs()">مسح جميع السجلات</button>
+        </div>
+
+        <!-- Dialog for auto save -->
+        <dialog id="autoSaveDialog">
+            <h3>اختر الفريق الذي تريد تسجيل القيد له:</h3>
+            <label for="teamSelect">اختار الفريق:</label>
+            <select id="teamSelect">
+                <option value="لنا">لنا</option>
+                <option value="لهم">لهم</option>
+            </select>
+
+            <h3>اختر التسجيل الذي تريد إضافته:</h3>
+            <button onclick="autoSave('خالص')">خالص</button>
+            <button onclick="autoSave('هند')">هند</button>
+            <button onclick="autoSave('جوكر')">جوكر</button>
+            <button onclick="autoSave('جوكرين')">جوكرين</button>
+            <button onclick="autoSave('جوكرين ولون')">جوكرين ولون</button>
+            <button onclick="closeAutoSaveDialog()">إغلاق</button>
+        </dialog>
+
+        <!-- Dialog for viewing completed games -->
+        <dialog id="gamesDialog">
+            <h3>جميع الألعاب (التي تحتوي على 9 قيود):</h3>
+            <div id="gamesList"></div>
+            <button onclick="closeGamesDialog()">إغلاق</button>
+        </dialog>
+    </div>
+
+    <script>
+        let gameLogs = [];
+        let allGames = [];
+        let totalScore1 = 0;
+        let totalScore2 = 0;
+
+        function saveGame() {
+            const team1 = document.getElementById('team1').value;
+            const team2 = document.getElementById('team2').value;
+            const score1 = parseInt(document.getElementById('score1').value);
+            const score2 = parseInt(document.getElementById('score2').value);
+
+            if (gameLogs.length >= 9) {
+                allGames.push({
+                    date: new Date().toLocaleString(),
+                    gameLogs: [...gameLogs]
+                });
+                gameLogs = [];
+                totalScore1 = 0;
+                totalScore2 = 0;
+                updateLogEntries();
+                updateTotalScores();
+                alert("تم تسجيل 9 قيود. تم حفظ اللعبة.");
+            } else {
+                const currentDate = new Date();
+                const logEntry = {
+                    team1: team1,
+                    team2: team2,
+                    score1: score1,
+                    score2: score2,
+                    date: currentDate.toLocaleString()
+                };
+
+                gameLogs.push(logEntry);
+                totalScore1 += score1;
+                totalScore2 += score2;
+
+                updateLogEntries();
+                updateTotalScores();
+            }
+
+            document.getElementById('score1').value = '';
+            document.getElementById('score2').value = '';
+        }
+
+        function updateLogEntries() {
+            const logEntriesDiv = document.getElementById('logEntries');
+            logEntriesDiv.innerHTML = '';
+
+            gameLogs.forEach((log, index) => {
+                const logDiv = document.createElement('div');
+                logDiv.classList.add('log-entry');
+                logDiv.innerHTML = `
+                    <span>${index + 1}</span>. 
+                    ${log.team1} (نقاط: ${log.score1}) ضد ${log.team2} (نقاط: ${log.score2}) 
+                    <br><small>${log.date}</small>
+                `;
+                logEntriesDiv.appendChild(logDiv);
+            });
+        }
+
+        function updateTotalScores() {
+            totalScore1 = gameLogs.reduce((sum, log) => sum + log.score1, 0);
+            totalScore2 = gameLogs.reduce((sum, log) => sum + log.score2, 0);
+
+            document.getElementById('totalScore1').innerText = totalScore1;
+            document.getElementById('totalScore2').innerText = totalScore2;
+        }
+
+        function toggleGames() {
+            const gamesDialog = document.getElementById('gamesDialog');
+            if (gamesDialog.open) {
+                gamesDialog.close();
+            } else {
+                updateGamesList();
+                gamesDialog.showModal();
+            }
+        }
+
+        function closeGamesDialog() {
+            document.getElementById('gamesDialog').close();
+        }
+
+        function updateGamesList() {
+            const gamesListDiv = document.getElementById('gamesList');
+            gamesListDiv.innerHTML = '';
+
+            if (allGames.length === 0) {
+                gamesListDiv.innerHTML = '<p>لا توجد ألعاب مكتملة بعد.</p>';
+            } else {
+                allGames.forEach((game, index) => {
+                    const gameDiv = document.createElement('div');
+                    gameDiv.classList.add('log-entry');
+                    gameDiv.innerHTML = `
+                        <h4>لعبة رقم ${index + 1} - ${game.date}</h4>
+                        ${game.gameLogs.map((log, idx) => `
+                            <p><span>${idx + 1}</span>. ${log.team1} (نقاط: ${log.score1}) ضد ${log.team2} (نقاط: ${log.score2}) 
+                            <br><small>${log.date}</small></p>
+                        `).join('')}
+                    `;
+                    gamesListDiv.appendChild(gameDiv);
+                });
+            }
+        }
+
+        function clearAllLogs() {
+            gameLogs = [];
+            allGames = [];
+            totalScore1 = 0;
+            totalScore2 = 0;
+
+            updateLogEntries();
+            updateTotalScores();
+            alert("تم مسح جميع السجلات.");
+        }
+
+        function undoLastRecord() {
+            if (gameLogs.length > 0) {
+                const lastLog = gameLogs.pop();
+                totalScore1 -= lastLog.score1;
+                totalScore2 -= lastLog.score2;
+
+                updateLogEntries();
+                updateTotalScores();
+            } else {
+                alert("لا توجد قيود لحذفها.");
+            }
+        }
+
+        // فتح نافذة التسجيل التلقائي
+        function openAutoSaveDialog() {
+            document.getElementById('autoSaveDialog').showModal();
+        }
+
+        // إغلاق نافذة التسجيل التلقائي
+        function closeAutoSaveDialog() {
+            document.getElementById('autoSaveDialog').close();
+        }
+
+        // التسجيل التلقائي بناءً على اختيار الفريق والنوع
+        function autoSave(type) {
+            const team = document.getElementById('teamSelect').value;
+            let score1, score2;
+
+            // تحديد النقاط بناءً على النوع المختار
+            switch(type) {
+                case 'خالص':
+                    score1 = -30; score2 = 200;
+                    break;
+                case 'هند':
+                    score1 = -60; score2 = 400;
+                    break;
+                case 'جوكر':
+                    score1 = -120; score2 = 800;
+                    break;
+                case 'جوكرين':
+                    score1 = -240; score2 = 1600;
+                    break;
+                case 'جوكرين ولون':
+                    score1 = -360; score2 = 2400;
+                    break;
+                default:
+                    score1 = 0; score2 = 0;
+            }
+
+            const currentDate = new Date();
+            const logEntry = {
+                team1: team === 'لنا' ? 'لنا' : 'لهم',
+                team2: team === 'لنا' ? 'لهم' : 'لنا',
+                score1: team === 'لنا' ? score1 : score2,
+                score2: team === 'لنا' ? score2 : score1,
+                date: currentDate.toLocaleString()
+            };
+
+            gameLogs.push(logEntry);
+            if (team === 'لنا') {
+                totalScore1 += logEntry.score1;
+                totalScore2 += logEntry.score2;
+            } else {
+                totalScore1 += logEntry.score2;
+                totalScore2 += logEntry.score1;
+            }
+
+            updateLogEntries();
+            updateTotalScores();
+
+            closeAutoSaveDialog();  // إغلاق النافذة بعد التسجيل التلقائي
+        }
+    </script>
+</body>
+</html>
